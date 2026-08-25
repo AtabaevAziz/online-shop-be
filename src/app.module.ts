@@ -1,6 +1,12 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+
+import { AuthController } from './auth/auth.controller';
+import { AuthModule } from './auth/auth.module';
+import { ProtectedRouteAuthHeaderMiddleware } from './common/middleware/protected-route-auth-header.middleware';
+import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
+import { ProductsController } from './products/products.controller';
 import { ProductsModule } from './products/products.module';
 
 @Module({
@@ -23,7 +29,17 @@ import { ProductsModule } from './products/products.module';
       }),
     }),
 
+    AuthModule,
     ProductsModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestContextMiddleware).forRoutes(AuthController, ProductsController);
+    consumer.apply(ProtectedRouteAuthHeaderMiddleware).forRoutes(
+      { path: 'products', method: RequestMethod.POST },
+      { path: 'products/:id', method: RequestMethod.PATCH },
+      { path: 'products/:id', method: RequestMethod.DELETE },
+    );
+  }
+}

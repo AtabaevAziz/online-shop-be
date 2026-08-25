@@ -23,12 +23,41 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Backend for the online shop demo. The request flow is intentionally explicit:
+
+`HTTP Request -> Middleware -> JWT/Guard -> Controller -> RequestDTO -> Service -> Entity -> Repository -> DB -> Entity -> ResponseDTO -> HTTP Response`
+
+Implemented pieces:
+
+- `RequestContextMiddleware` adds `X-Request-Id` and logs each request
+- `ProtectedRouteAuthHeaderMiddleware` checks `Authorization: Bearer ...` on protected routes
+- `POST /auth/login` returns a JWT for one env-configured admin user
+- `JwtAuthGuard` authenticates the token
+- `RolesGuard` checks the `admin` role on product write routes
+- `RequestTimeoutInterceptor` returns `408` when a request takes longer than 5 seconds
+
+Public product routes:
+
+- `GET /products`
+- `GET /products/:id`
+- `GET /products/slug/:slug`
+
+Protected product routes:
+
+- `POST /products`
+- `PATCH /products/:id`
+- `DELETE /products/:id`
 
 ## Project setup
 
 ```bash
 $ npm install
+```
+
+Copy the example env file and set the auth values:
+
+```bash
+$ cp .env.example .env
 ```
 
 ## Compile and run the project
@@ -55,6 +84,31 @@ $ npm run test:e2e
 
 # test coverage
 $ npm run test:cov
+```
+
+## Auth example
+
+Login and receive a Bearer token:
+
+```bash
+curl -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"super-secret"}'
+```
+
+Use the token on protected routes:
+
+```bash
+curl -X POST http://localhost:3000/products \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <accessToken>" \
+  -d '{
+    "name": "Orbit Chair",
+    "slug": "orbit-chair",
+    "description": "Compact lounge chair",
+    "price": 249.99,
+    "imageUrl": "https://images.example/orbit-chair.jpg"
+  }'
 ```
 
 ## Deployment

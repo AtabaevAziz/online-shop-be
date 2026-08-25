@@ -17,6 +17,7 @@ export class ProductsService {
       throw new ConflictException('Product with this slug already exists');
     }
 
+    // The service owns the DTO -> Entity mapping before the repository persists it.
     const product = await this.productsRepository.create(
       new ProductEntity({
         name: dto.name,
@@ -83,6 +84,7 @@ export class ProductsService {
   }
 
   private toResponseDto(product: ProductEntity): ProductResponseDto {
+    // Only the response DTO is returned to the controller/client.
     return {
       id: product.id,
       name: product.name,
