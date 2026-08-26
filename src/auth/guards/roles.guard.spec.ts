@@ -41,4 +41,19 @@ describe('RolesGuard', () => {
 
     expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
   });
+
+  it('allows requests when the user role matches the required role', () => {
+    reflector.getAllAndOverride.mockReturnValue(['admin']);
+    const guard = new RolesGuard(reflector as unknown as Reflector);
+
+    const context = {
+      getHandler: jest.fn(),
+      getClass: jest.fn(),
+      switchToHttp: () => ({
+        getRequest: () => ({ user: { role: 'admin' } }),
+      }),
+    } as unknown as ExecutionContext;
+
+    expect(guard.canActivate(context)).toBe(true);
+  });
 });

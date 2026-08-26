@@ -29,6 +29,18 @@ import { ProductsService } from '../src/products/products.service';
 const products = new Map<string, ProductEntity>();
 let sequence = 1;
 
+function sortProductsByCreatedAtDesc(items: ProductEntity[]): ProductEntity[] {
+  return [...items].sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
+}
+
+function findProductByWhere(where: Partial<ProductEntity>): ProductEntity | null {
+  return (
+    Array.from(products.values()).find((product) =>
+      Object.entries(where).every(([key, value]) => product[key as keyof ProductEntity] === value),
+    ) ?? null
+  );
+}
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -57,36 +69,62 @@ let sequence = 1;
     {
       provide: ProductsRepository,
       useValue: {
-        findById: jest.fn(async (id: string) => products.get(id) ?? null),
-        findBySlug: jest.fn(
-          async (slug: string) =>
-            Array.from(products.values()).find((product) => product.slug === slug) ?? null,
+        find: jest.fn(async () => sortProductsByCreatedAtDesc(Array.from(products.values()))),
+        findOne: jest.fn(async (id: string) => products.get(id) ?? null),
+        findOneBy: jest.fn(async (where: Partial<ProductEntity>) => findProductByWhere(where)),
+        findBy: jest.fn(
+          async (where: Partial<ProductEntity>) =>
+            Array.from(products.values()).filter((product) =>
+              Object.entries(where).every(
+                ([key, value]) => product[key as keyof ProductEntity] === value,
+              ),
+            ),
         ),
-        findAll: jest.fn(async () => Array.from(products.values())),
-        create: jest.fn(async (entity: ProductEntity) => {
-          const created = new ProductEntity({
+        create: jest.fn((entity: Partial<ProductEntity>) => new ProductEntity(entity)),
+        preload: jest.fn(async (entity: Partial<ProductEntity>) => {
+          if (!entity.id) {
+            return undefined;
+          }
+
+          const current = products.get(entity.id);
+          if (!current) {
+            return undefined;
+          }
+
+          return new ProductEntity({
+            ...current,
             ...entity,
-            id: `product-${sequence++}`,
-            createdAt: new Date('2026-08-24T00:00:00.000Z'),
-            updatedAt: new Date('2026-08-24T00:00:00.000Z'),
           });
-          products.set(created.id, created);
-          return created;
         }),
-        update: jest.fn(async (entity: ProductEntity) => {
+        save: jest.fn(async (entity: Partial<ProductEntity>) => {
+          const timestamp = new Date('2026-08-24T00:00:00.000Z');
+
+          if (!entity.id) {
+            const created = new ProductEntity({
+              ...entity,
+              id: `product-${sequence++}`,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+            });
+            products.set(created.id, created);
+            return created;
+          }
+
+          const current = products.get(entity.id);
           const updated = new ProductEntity({
+            ...current,
             ...entity,
-            updatedAt: new Date('2026-08-24T00:00:00.000Z'),
+            updatedAt: timestamp,
           });
           products.set(updated.id, updated);
           return updated;
         }),
-        remove: jest.fn(async (id: string) => {
-          const current = products.get(id);
+        remove: jest.fn(async (entity: ProductEntity) => {
+          const current = products.get(entity.id);
           if (!current) {
             throw new Error('Product not found');
           }
-          products.delete(id);
+          products.delete(entity.id);
           return current;
         }),
       },

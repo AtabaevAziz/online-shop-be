@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import type { DeepPartial, DeleteResult, FindManyOptions, FindOptionsWhere, InsertResult, QueryDeepPartialEntity, UpdateResult } from 'typeorm';
 
 import { ProductEntity } from './entities/product.entity';
 
@@ -11,42 +12,64 @@ export class ProductsRepository {
     private readonly productsOrmRepository: Repository<ProductEntity>,
   ) {}
 
-  findById(id: string): Promise<ProductEntity | null> {
-    return this.productsOrmRepository.findOne({ where: { id } });
-  }
-
-  findBySlug(slug: string): Promise<ProductEntity | null> {
-    return this.productsOrmRepository.findOne({ where: { slug } });
-  }
-
-  findAll(): Promise<ProductEntity[]> {
+  find(): Promise<ProductEntity[]> {
     return this.productsOrmRepository.find({
       order: { createdAt: 'DESC' },
     });
   }
 
-  create(entity: ProductEntity): Promise<ProductEntity> {
-    // The ORM converts the entity into SQL INSERT/UPDATE operations for the database.
-    return this.productsOrmRepository.save(
-      this.productsOrmRepository.create({
-        name: entity.name,
-        slug: entity.slug,
-        description: entity.description,
-        price: entity.price,
-        imageUrl: entity.imageUrl,
-      }),
-    );
+  findOne(id: string): Promise<ProductEntity | null> {
+    return this.productsOrmRepository.findOne({ where: { id } });
   }
 
-  update(entity: ProductEntity): Promise<ProductEntity> {
+  findOneBy(where: FindOptionsWhere<ProductEntity>): Promise<ProductEntity | null> {
+    return this.productsOrmRepository.findOneBy(where);
+  }
+
+  findBy(where: FindOptionsWhere<ProductEntity>): Promise<ProductEntity[]> {
+    return this.productsOrmRepository.findBy(where);
+  }
+
+  create(data: DeepPartial<ProductEntity>): ProductEntity {
+    return this.productsOrmRepository.create(data);
+  }
+
+  preload(data: DeepPartial<ProductEntity>): Promise<ProductEntity | undefined> {
+    return this.productsOrmRepository.preload(data);
+  }
+
+  save(entity: DeepPartial<ProductEntity>): Promise<ProductEntity> {
     return this.productsOrmRepository.save(entity);
   }
 
-  async remove(id: string): Promise<ProductEntity> {
-    const product = await this.productsOrmRepository.findOneOrFail({
-      where: { id },
-    });
+  insert(data: QueryDeepPartialEntity<ProductEntity>): Promise<InsertResult> {
+    return this.productsOrmRepository.insert(data);
+  }
 
-    return this.productsOrmRepository.remove(product);
+  update(
+    where: FindOptionsWhere<ProductEntity>,
+    data: QueryDeepPartialEntity<ProductEntity>,
+  ): Promise<UpdateResult> {
+    return this.productsOrmRepository.update(where, data);
+  }
+
+  delete(where: FindOptionsWhere<ProductEntity>): Promise<DeleteResult> {
+    return this.productsOrmRepository.delete(where);
+  }
+
+  count(options?: FindManyOptions<ProductEntity>): Promise<number> {
+    return this.productsOrmRepository.count(options);
+  }
+
+  exists(id: string): Promise<boolean> {
+    return this.productsOrmRepository.exists({ where: { id } });
+  }
+
+  existsBy(where: FindOptionsWhere<ProductEntity>): Promise<boolean> {
+    return this.productsOrmRepository.existsBy(where);
+  }
+
+  remove(entity: ProductEntity): Promise<ProductEntity> {
+    return this.productsOrmRepository.remove(entity);
   }
 }

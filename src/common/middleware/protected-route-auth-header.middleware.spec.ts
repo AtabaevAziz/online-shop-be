@@ -21,6 +21,16 @@ describe('ProtectedRouteAuthHeaderMiddleware', () => {
     ).toThrow(UnauthorizedException);
   });
 
+  it('rejects requests with an empty bearer token', () => {
+    expect(() =>
+      middleware.use(
+        { headers: { authorization: 'Bearer   ' } } as never,
+        {} as never,
+        jest.fn(),
+      ),
+    ).toThrow(UnauthorizedException);
+  });
+
   it('allows requests with a bearer token', () => {
     const next = jest.fn();
 
