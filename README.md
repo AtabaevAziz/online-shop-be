@@ -1,94 +1,126 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Online Shop Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
-
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
-
-## Description
-
-Backend for the online shop demo. The request flow is intentionally explicit:
+Minimal NestJS backend for the online shop demo. The request flow is intentionally explicit:
 
 `HTTP Request -> Middleware -> JWT/Guard -> Controller -> RequestDTO -> Service -> Entity -> Repository -> DB -> Entity -> ResponseDTO -> HTTP Response`
 
-Implemented pieces:
+## What is implemented
 
-- `RequestContextMiddleware` adds `X-Request-Id` and logs each request
-- `ProtectedRouteAuthHeaderMiddleware` checks `Authorization: Bearer ...` on protected routes
-- `POST /auth/login` returns a JWT for one env-configured admin user
-- `JwtAuthGuard` authenticates the token
-- `RolesGuard` checks the `admin` role on product write routes
-- `RequestTimeoutInterceptor` returns `408` when a request takes longer than 5 seconds
+- `RequestContextMiddleware`
+  - adds `X-Request-Id`
+  - logs method, path, status code, and elapsed time
+- `ProtectedRouteAuthHeaderMiddleware`
+  - checks `Authorization: Bearer ...` on protected write routes before guards run
+- `POST /auth/login`
+  - returns a bearer token for one env-configured admin user
+- `JwtAuthGuard`
+  - validates the bearer token and attaches the auth payload to the request
+- `RolesGuard`
+  - allows only the `admin` role on product write routes
+- `RequestTimeoutInterceptor`
+  - returns `408 Request Timeout` after 5 seconds
+- `products` module
+  - demonstrates the full `DTO -> Service -> Entity -> Repository(TypeORM)` CRUD flow
 
-Public product routes:
+## Routes
+
+Public routes:
 
 - `GET /products`
 - `GET /products/:id`
 - `GET /products/slug/:slug`
 
-Protected product routes:
+Protected routes:
 
 - `POST /products`
 - `PATCH /products/:id`
 - `DELETE /products/:id`
 
-## Project setup
+Auth route:
+
+- `POST /auth/login`
+
+## Environment
+
+Create `.env` from the example file:
 
 ```bash
-$ npm install
+cp .env.example .env
 ```
 
-Copy the example env file and set the auth values:
+Variables used by the backend:
+
+```env
+PORT=3000
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=postgres
+DB_NAME=online_shop
+
+JWT_SECRET=replace-with-a-long-random-secret
+JWT_EXPIRES_IN=1h
+
+AUTH_ADMIN_USERNAME=admin
+AUTH_ADMIN_PASSWORD=super-secret
+```
+
+## Database setup
+
+The backend expects PostgreSQL.
+
+Before starting the app:
+
+1. PostgreSQL must already be running.
+2. The database named in `DB_NAME` must already exist.
+
+`synchronize: true` can create or update tables, but it does not create the database itself.
+
+## Run
+
+Install dependencies:
 
 ```bash
-$ cp .env.example .env
+npm install
 ```
 
-## Compile and run the project
+Start in development mode:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm run start:dev
 ```
 
-## Run tests
+Other available commands:
 
-```bash
-# unit tests
-$ npm run test
+- `npm run start`
+- `npm run start:debug`
+- `npm run start:prod`
+- `npm run build`
+- `npm run format`
+- `npm run lint`
+- `npm test`
+- `npm run test:watch`
+- `npm run test:cov`
+- `npm run test:debug`
+- `npm run test:e2e`
 
-# e2e tests
-$ npm run test:e2e
+## Request flow
 
-# test coverage
-$ npm run test:cov
-```
+1. The client sends JSON to a controller route.
+2. Nest validation transforms the request body into `CreateProductDto` or `UpdateProductDto`.
+3. Middleware runs before the controller.
+4. Protected write routes also pass through the auth and roles guards.
+5. The controller delegates work to `ProductsService`.
+6. The service applies business rules and maps DTO data into `ProductEntity`.
+7. `ProductsRepository` calls TypeORM repository methods.
+8. TypeORM persists or loads entity data from PostgreSQL.
+9. The service maps the resulting entity into `ProductResponseDto`.
+10. The controller returns JSON to the client.
 
-## Auth example
+## API examples
 
-Login and receive a Bearer token:
+Login:
 
 ```bash
 curl -X POST http://localhost:3000/auth/login \
@@ -96,7 +128,19 @@ curl -X POST http://localhost:3000/auth/login \
   -d '{"username":"admin","password":"super-secret"}'
 ```
 
-Use the token on protected routes:
+Get all products:
+
+```bash
+curl http://localhost:3000/products
+```
+
+Get one product by slug:
+
+```bash
+curl http://localhost:3000/products/slug/orbit-chair
+```
+
+Create a product:
 
 ```bash
 curl -X POST http://localhost:3000/products \
@@ -111,42 +155,128 @@ curl -X POST http://localhost:3000/products \
   }'
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Update a product:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+curl -X PATCH http://localhost:3000/products/<id> \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <accessToken>" \
+  -d '{
+    "price": 199.99
+  }'
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Delete a product:
 
-## Resources
+```bash
+curl -X DELETE http://localhost:3000/products/<id> \
+  -H "Authorization: Bearer <accessToken>"
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+## TypeORM in this project
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+The `products` module keeps ORM usage explicit:
 
-## Support
+- `find()` loads all products
+- `findOne(id)` loads one product by id
+- `findOneBy({ slug })` loads one product by conditions
+- `create(data)` creates an entity object without writing to the database
+- `preload(data)` prepares an existing entity for update
+- `save(entity)` inserts or updates a row
+- `remove(entity)` deletes an entity instance
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+The custom `ProductsRepository` wraps the TypeORM repository so the service stays focused on validation, conflicts, and DTO mapping.
 
-## Stay in touch
+## SQL cheat sheet
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+The current entity maps to a `products` table with these field names:
 
-## License
+```sql
+CREATE TABLE products (
+  id UUID PRIMARY KEY,
+  name VARCHAR(160) NOT NULL,
+  slug VARCHAR(180) UNIQUE NOT NULL,
+  description TEXT NOT NULL,
+  price DECIMAL(10, 2) NOT NULL,
+  "imageUrl" VARCHAR(500) NOT NULL,
+  "createdAt" TIMESTAMP NOT NULL,
+  "updatedAt" TIMESTAMP NOT NULL
+);
+```
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Read all products:
+
+```sql
+SELECT * FROM products;
+```
+
+Read one product by id:
+
+```sql
+SELECT * FROM products
+WHERE id = 'product-id';
+```
+
+Read one product by slug:
+
+```sql
+SELECT * FROM products
+WHERE slug = 'orbit-chair';
+```
+
+Insert a product:
+
+```sql
+INSERT INTO products (id, name, slug, description, price, "imageUrl", "createdAt", "updatedAt")
+VALUES (
+  'generated-uuid',
+  'Orbit Chair',
+  'orbit-chair',
+  'Compact lounge chair',
+  249.99,
+  'https://images.example/orbit-chair.jpg',
+  NOW(),
+  NOW()
+);
+```
+
+Update a product:
+
+```sql
+UPDATE products
+SET price = 199.99,
+    "updatedAt" = NOW()
+WHERE id = 'product-id';
+```
+
+Delete a product:
+
+```sql
+DELETE FROM products
+WHERE id = 'product-id';
+```
+
+Count products:
+
+```sql
+SELECT COUNT(*) FROM products;
+```
+
+TypeORM to SQL mapping:
+
+- `find()` is the ORM-level equivalent of `SELECT *`
+- `findOneBy({ slug })` is the ORM-level equivalent of `SELECT ... WHERE slug = ...`
+- `save(entity)` can translate to `INSERT` or `UPDATE`
+- `remove(entity)` maps to `DELETE`
+
+## Tests
+
+Unit and e2e tests are already present in the repository.
+
+Documented test commands:
+
+- `npm test`
+- `npm run test:watch`
+- `npm run test:cov`
+- `npm run test:debug`
+- `npm run test:e2e`
