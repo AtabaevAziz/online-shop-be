@@ -191,7 +191,7 @@ The custom `ProductsRepository` wraps the TypeORM repository so the service stay
 
 The current entity maps to a `products` table with these field names:
 
-```sql
+```
 CREATE TABLE products (
   id UUID PRIMARY KEY,
   name VARCHAR(160) NOT NULL,
@@ -206,27 +206,27 @@ CREATE TABLE products (
 
 Read all products:
 
-```sql
+```
 SELECT * FROM products;
 ```
 
 Read one product by id:
 
-```sql
+```
 SELECT * FROM products
 WHERE id = 'product-id';
 ```
 
 Read one product by slug:
 
-```sql
+```
 SELECT * FROM products
 WHERE slug = 'orbit-chair';
 ```
 
 Insert a product:
 
-```sql
+```
 INSERT INTO products (id, name, slug, description, price, "imageUrl", "createdAt", "updatedAt")
 VALUES (
   'generated-uuid',
@@ -242,7 +242,7 @@ VALUES (
 
 Update a product:
 
-```sql
+```
 UPDATE products
 SET price = 199.99,
     "updatedAt" = NOW()
@@ -251,14 +251,14 @@ WHERE id = 'product-id';
 
 Delete a product:
 
-```sql
+```
 DELETE FROM products
 WHERE id = 'product-id';
 ```
 
 Count products:
 
-```sql
+```
 SELECT COUNT(*) FROM products;
 ```
 
