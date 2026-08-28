@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 
 import { AuthController } from './auth/auth.controller';
 import { AuthModule } from './auth/auth.module';
@@ -8,6 +9,42 @@ import { ProtectedRouteAuthHeaderMiddleware } from './common/middleware/protecte
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 import { ProductsController } from './products/products.controller';
 import { ProductsModule } from './products/products.module';
+
+function buildDatabaseConfig(configService: ConfigService): TypeOrmModuleOptions {
+  const host = configService.get<string>('DB_HOST') ?? 'localhost';
+  const portValue = configService.get<string>('DB_PORT') ?? '5432';
+  const username = configService.get<string>('DB_USERNAME') ?? 'postgres';
+  const password = configService.get<string>('DB_PASSWORD') ?? 'postgres';
+  const database = configService.get<string>('DB_NAME') ?? 'online_shop';
+  const port = Number(portValue);
+
+  if (!Number.isInteger(port) || port <= 0) {
+    throw new Error(`Invalid DB_PORT value: "${portValue}"`);
+  }
+
+  return {
+    type: 'postgres',
+    host,
+    port,
+    username,
+    password,
+    database,
+    autoLoadEntities: true,
+    synchronize: true,
+    retryAttempts: 0,
+    retryDelay: 0,
+    dataSourceFactory: async (options) => {
+      try {
+        return await new DataSource(options).initialize();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `Failed to connect to PostgreSQL with DB config ${username}@${host}:${port}/${database}: ${message}`,
+        );
+      }
+    },
+  };
+}
 
 @Module({
   imports: [
@@ -17,16 +54,7 @@ import { ProductsModule } from './products/products.module';
 
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get<string>('DB_HOST'),
-        port: Number(configService.get<string>('DB_PORT')),
-        username: configService.get<string>('DB_USERNAME'),
-        password: configService.get<string>('DB_PASSWORD'),
-        database: configService.get<string>('DB_NAME'),
-        autoLoadEntities: true,
-        synchronize: true,
-      }),
+      useFactory: (configService: ConfigService) => buildDatabaseConfig(configService),
     }),
 
     AuthModule,

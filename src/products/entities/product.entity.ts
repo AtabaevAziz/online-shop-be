@@ -23,8 +23,8 @@ export class ProductEntity {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   price!: number;
 
-  @Column({ type: 'varchar', length: 500, nullable: true })
-  imageUrl!: string | null;
+  @Column({ type: 'varchar', length: 500 })
+  imageUrl!: string;
 
   @CreateDateColumn()
   createdAt!: Date;
