@@ -2,7 +2,13 @@
 
 Minimal NestJS backend for the online shop demo. The request flow is intentionally explicit:
 
-`HTTP Request -> Middleware -> JWT/Guard -> Controller -> RequestDTO -> Service -> Entity -> Repository -> DB -> Entity -> ResponseDTO -> HTTP Response`
+`JSON -> DTO -> Service -> Entity -> Repository -> SQL -> ResponseDTO -> JSON`
+
+The frontend learning page at `/learn` uses this backend as its real example chain.
+
+The core beginner version of the same idea is:
+
+`HTTP Request with JSON -> Controller -> RequestDTO -> Service -> Entity -> Repository/ORM -> SQL -> DB -> Entity -> Service -> ResponseDTO -> Controller -> HTTP Response with JSON`
 
 ## What is implemented
 
@@ -21,6 +27,55 @@ Minimal NestJS backend for the online shop demo. The request flow is intentional
   - returns `408 Request Timeout` after 5 seconds
 - `products` module
   - demonstrates the full `DTO -> Service -> Entity -> Repository(TypeORM)` CRUD flow
+
+## Cheat sheet
+
+Backend flow:
+
+`JSON -> DTO -> Service -> Entity -> Repository -> SQL -> ResponseDTO -> JSON`
+
+Access flow:
+
+`Request -> Middleware -> JWT -> Guard -> Controller -> Timeout`
+
+SQL <-> TypeORM:
+
+- `find()` -> `SELECT`
+- `findOneBy({ slug })` -> `SELECT ... WHERE slug = ...`
+- `save(entity)` -> `INSERT` or `UPDATE`
+- `remove(entity)` -> `DELETE`
+- `create(data)` -> build an entity in memory only
+
+Term meanings:
+
+- `Middleware` -> code that works on the request before the controller
+- `JWT token` -> token that identifies the client after login
+- `Guard` -> code that allows or denies an action
+- `Timeout` -> the maximum wait time for a request
+
+School analogies:
+
+- `Middleware` -> like the duty teacher at the entrance
+- `JWT token` -> like a school pass card
+- `Guard` -> like a guard at the classroom door
+- `Timeout` -> like stopping the wait after 5 seconds
+
+## Full-stack learning order
+
+Use this order when explaining the project from frontend to backend:
+
+1. `Component` -> UI block that renders ready data
+2. `Page` -> collects data and passes props to components
+3. `Fetch / API call` -> asks the backend for JSON
+4. `Controller` -> receives HTTP request
+5. `DTO` -> validates request shape or defines response shape
+6. `Service` -> applies business rules
+7. `Repository` -> calls TypeORM methods
+8. `Entity` -> maps fields to table columns
+9. `SQL` -> database language behind ORM
+10. `JSON response` -> data returns to the frontend
+
+In this repo, the DTO part is represented by `CreateProductDto`, `UpdateProductDto`, and `ProductResponseDto`.
 
 ## Routes
 
@@ -48,7 +103,7 @@ Create `.env` from the example file:
 cp .env.example .env
 ```
 
-Variables used by the backend:
+The example file contains all variables used by the backend:
 
 ```env
 PORT=3000
@@ -75,6 +130,19 @@ Before starting the app:
 1. PostgreSQL must already be running.
 2. The database named in `DB_NAME` must already exist.
 
+For the default local settings in `.env.example`:
+
+```bash
+createdb -h localhost -p 5432 -U postgres online_shop
+```
+
+If `createdb` is not available, use `psql` instead:
+
+```bash
+psql -h localhost -p 5432 -U postgres -d postgres \
+  -c "CREATE DATABASE online_shop;"
+```
+
 `synchronize: true` can create or update tables, but it does not create the database itself.
 
 ## Run
@@ -83,6 +151,12 @@ Install dependencies:
 
 ```bash
 npm install
+```
+
+Create the database if you have not already:
+
+```bash
+createdb -h localhost -p 5432 -U postgres online_shop
 ```
 
 Start in development mode:
@@ -117,6 +191,10 @@ Other available commands:
 8. TypeORM persists or loads entity data from PostgreSQL.
 9. The service maps the resulting entity into `ProductResponseDto`.
 10. The controller returns JSON to the client.
+
+Short version:
+
+`Request -> Middleware -> JWT/Guard -> Controller -> DTO -> Service -> Repository -> DB -> Response`
 
 ## API examples
 
@@ -180,9 +258,15 @@ The `products` module keeps ORM usage explicit:
 - `find()` loads all products
 - `findOne(id)` loads one product by id
 - `findOneBy({ slug })` loads one product by conditions
+- `findBy(where)` loads several products by conditions
 - `create(data)` creates an entity object without writing to the database
 - `preload(data)` prepares an existing entity for update
 - `save(entity)` inserts or updates a row
+- `insert(data)` inserts rows directly
+- `update(where, data)` updates rows directly
+- `delete(where)` deletes rows directly
+- `count()` counts rows
+- `exists(id)` and `existsBy(where)` check whether rows exist
 - `remove(entity)` deletes an entity instance
 
 The custom `ProductsRepository` wraps the TypeORM repository so the service stays focused on validation, conflicts, and DTO mapping.
@@ -268,6 +352,41 @@ TypeORM to SQL mapping:
 - `findOneBy({ slug })` is the ORM-level equivalent of `SELECT ... WHERE slug = ...`
 - `save(entity)` can translate to `INSERT` or `UPDATE`
 - `remove(entity)` maps to `DELETE`
+- `count()` maps to `SELECT COUNT(*)`
+
+## Beginner SQL example
+
+Use a simple `users` table to explain SQL before mapping it back to `products`:
+
+```
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(100),
+  age INTEGER,
+  city VARCHAR(100)
+);
+```
+
+Minimal learning queries:
+
+- `SELECT * FROM users;` -> get data
+- `SELECT * FROM users WHERE age >= 18;` -> get data by condition
+- `INSERT INTO users (name, age, city) VALUES ('Tom', 16, 'Tashkent');` -> add data
+- `UPDATE users SET age = 16 WHERE id = 1;` -> change data
+- `DELETE FROM users WHERE id = 3;` -> remove data
+- `SELECT * FROM users ORDER BY age DESC LIMIT 2;` -> sort and limit
+- `SELECT * FROM users WHERE name LIKE 'A%';` -> simple text search
+- `SELECT COUNT(*) FROM users WHERE city = 'Tashkent';` -> count matching rows
+
+Important warning:
+
+- `UPDATE users SET age = 16;` changes every row
+- `DELETE FROM users;` removes every row
+
+Why two examples exist:
+
+- `users` is the simple learning table
+- `products` is the real project table
 
 ## Tests
 

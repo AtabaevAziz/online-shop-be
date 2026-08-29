@@ -6,7 +6,11 @@ import { AuthenticatedRequest } from '../../auth/interfaces/authenticated-reques
 
 @Injectable()
 export class RequestContextMiddleware implements NestMiddleware {
-  use(request: AuthenticatedRequest, response: Response, next: NextFunction): void {
+  use(
+    request: AuthenticatedRequest,
+    response: Response,
+    next: NextFunction,
+  ): void {
     const requestId = randomUUID();
     const startedAt = Date.now();
 

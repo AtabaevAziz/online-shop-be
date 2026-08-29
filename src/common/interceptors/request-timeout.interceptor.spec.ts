@@ -1,4 +1,8 @@
-import { CallHandler, ExecutionContext, RequestTimeoutException } from '@nestjs/common';
+import {
+  CallHandler,
+  ExecutionContext,
+  RequestTimeoutException,
+} from '@nestjs/common';
 import { lastValueFrom, map, of, timer } from 'rxjs';
 
 import { RequestTimeoutInterceptor } from './request-timeout.interceptor';
@@ -22,7 +26,9 @@ describe('RequestTimeoutInterceptor', () => {
       handle: () => timer(10).pipe(map(() => 'late')),
     } as CallHandler;
 
-    const resultPromise = lastValueFrom(interceptor.intercept({} as ExecutionContext, next));
+    const resultPromise = lastValueFrom(
+      interceptor.intercept({} as ExecutionContext, next),
+    );
     jest.advanceTimersByTime(10);
 
     await expect(resultPromise).rejects.toBeInstanceOf(RequestTimeoutException);

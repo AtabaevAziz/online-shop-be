@@ -6,6 +6,10 @@ import { RequestTimeoutInterceptor } from './common/interceptors/request-timeout
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableCors({
+    origin: true,
+    exposedHeaders: ['X-Request-Id'],
+  });
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
@@ -16,4 +20,5 @@ async function bootstrap() {
   app.useGlobalInterceptors(new RequestTimeoutInterceptor());
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+
+void bootstrap();

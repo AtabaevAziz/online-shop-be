@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { CreateProductDto } from './dto/create-product.dto';
 import { ProductResponseDto } from './dto/product-response.dto';
@@ -11,7 +15,9 @@ export class ProductsService {
   constructor(private readonly productsRepository: ProductsRepository) {}
 
   async create(dto: CreateProductDto): Promise<ProductResponseDto> {
-    const existingProduct = await this.productsRepository.findOneBy({ slug: dto.slug });
+    const existingProduct = await this.productsRepository.findOneBy({
+      slug: dto.slug,
+    });
 
     if (existingProduct) {
       throw new ConflictException('Product with this slug already exists');
@@ -54,7 +60,9 @@ export class ProductsService {
     const product = await this.getProductOrThrow(id);
 
     if (dto.slug && dto.slug !== product.slug) {
-      const existingProduct = await this.productsRepository.findOneBy({ slug: dto.slug });
+      const existingProduct = await this.productsRepository.findOneBy({
+        slug: dto.slug,
+      });
       if (existingProduct && existingProduct.id !== product.id) {
         throw new ConflictException('Product with this slug already exists');
       }
@@ -73,13 +81,25 @@ export class ProductsService {
       throw new NotFoundException(`Product with id ${id} was not found`);
     }
 
-    return this.toResponseDto(await this.productsRepository.save(updatedProduct));
+    return this.toResponseDto(
+      await this.productsRepository.save(updatedProduct),
+    );
   }
 
   async remove(id: string): Promise<ProductResponseDto> {
     const product = await this.getProductOrThrow(id);
     const deletedProduct = await this.productsRepository.remove(product);
     return this.toResponseDto(deletedProduct);
+  }
+
+  async demoTimeout(): Promise<{ status: 'completed'; waitedMs: number }> {
+    const waitedMs = 6000;
+    await new Promise((resolve) => setTimeout(resolve, waitedMs));
+
+    return {
+      status: 'completed',
+      waitedMs,
+    };
   }
 
   private toResponseDto(product: {

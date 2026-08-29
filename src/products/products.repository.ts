@@ -1,7 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import type { DeepPartial, DeleteResult, FindManyOptions, FindOptionsWhere, InsertResult, QueryDeepPartialEntity, UpdateResult } from 'typeorm';
+import type {
+  DeepPartial,
+  DeleteResult,
+  FindManyOptions,
+  FindOptionsWhere,
+  InsertResult,
+  QueryDeepPartialEntity,
+  UpdateResult,
+} from 'typeorm';
 
 import { ProductEntity } from './entities/product.entity';
 
@@ -22,7 +30,9 @@ export class ProductsRepository {
     return this.productsOrmRepository.findOne({ where: { id } });
   }
 
-  findOneBy(where: FindOptionsWhere<ProductEntity>): Promise<ProductEntity | null> {
+  findOneBy(
+    where: FindOptionsWhere<ProductEntity>,
+  ): Promise<ProductEntity | null> {
     return this.productsOrmRepository.findOneBy(where);
   }
 
@@ -34,7 +44,9 @@ export class ProductsRepository {
     return this.productsOrmRepository.create(data);
   }
 
-  preload(data: DeepPartial<ProductEntity>): Promise<ProductEntity | undefined> {
+  preload(
+    data: DeepPartial<ProductEntity>,
+  ): Promise<ProductEntity | undefined> {
     return this.productsOrmRepository.preload(data);
   }
 

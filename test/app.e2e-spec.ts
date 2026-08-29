@@ -14,6 +14,7 @@ import { App } from 'supertest/types';
 
 import { AuthController } from '../src/auth/auth.controller';
 import { AuthService } from '../src/auth/auth.service';
+import { LoginResponseDto } from '../src/auth/dto/login-response.dto';
 import { JwtAuthGuard } from '../src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/auth/guards/roles.guard';
 import { JwtTokenService } from '../src/auth/jwt-token.service';
@@ -26,17 +27,103 @@ import { ProductsController } from '../src/products/products.controller';
 import { ProductsRepository } from '../src/products/products.repository';
 import { ProductsService } from '../src/products/products.service';
 
+interface ProductResponseBody {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  price: number;
+  imageUrl: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 const products = new Map<string, ProductEntity>();
 let sequence = 1;
 
 function sortProductsByCreatedAtDesc(items: ProductEntity[]): ProductEntity[] {
-  return [...items].sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
+  return [...items].sort(
+    (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+  );
 }
 
-function findProductByWhere(where: Partial<ProductEntity>): ProductEntity | null {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function assertIsLoginResponseBody(
+  value: unknown,
+  expectedRole: 'admin' | 'user',
+): asserts value is LoginResponseDto {
+  if (!isRecord(value)) {
+    throw new Error('Expected login response body to be an object');
+  }
+
+  if (typeof value.accessToken !== 'string') {
+    throw new Error('Expected accessToken to be a string');
+  }
+
+  if (value.tokenType !== 'Bearer') {
+    throw new Error('Expected tokenType to be Bearer');
+  }
+
+  if (typeof value.expiresIn !== 'string') {
+    throw new Error('Expected expiresIn to be a string');
+  }
+
+  if (value.role !== expectedRole) {
+    throw new Error(`Expected role to be ${expectedRole}`);
+  }
+}
+
+function assertIsProductResponseBody(
+  value: unknown,
+): asserts value is ProductResponseBody {
+  if (!isRecord(value)) {
+    throw new Error('Expected product response body to be an object');
+  }
+
+  if (typeof value.id !== 'string') {
+    throw new Error('Expected product id to be a string');
+  }
+
+  if (typeof value.name !== 'string') {
+    throw new Error('Expected product name to be a string');
+  }
+
+  if (typeof value.slug !== 'string') {
+    throw new Error('Expected product slug to be a string');
+  }
+
+  if (typeof value.description !== 'string') {
+    throw new Error('Expected product description to be a string');
+  }
+
+  if (typeof value.price !== 'number') {
+    throw new Error('Expected product price to be a number');
+  }
+
+  if (typeof value.imageUrl !== 'string') {
+    throw new Error('Expected product imageUrl to be a string');
+  }
+
+  if (typeof value.createdAt !== 'string') {
+    throw new Error('Expected product createdAt to be a string');
+  }
+
+  if (typeof value.updatedAt !== 'string') {
+    throw new Error('Expected product updatedAt to be a string');
+  }
+}
+
+function findProductByWhere(
+  where: Partial<ProductEntity>,
+): ProductEntity | null {
   return (
     Array.from(products.values()).find((product) =>
-      Object.entries(where).every(([key, value]) => product[key as keyof ProductEntity] === value),
+      Object.entries(where).every(
+        ([key, value]) => product[key as keyof ProductEntity] === value,
+      ),
     ) ?? null
   );
 }
@@ -52,6 +139,8 @@ function findProductByWhere(where: Partial<ProductEntity>): ProductEntity | null
           JWT_EXPIRES_IN: '1h',
           AUTH_ADMIN_USERNAME: 'admin',
           AUTH_ADMIN_PASSWORD: 'super-secret',
+          AUTH_DEMO_USERNAME: 'user',
+          AUTH_DEMO_PASSWORD: 'user-secret',
         }),
       ],
     }),
@@ -69,34 +158,47 @@ function findProductByWhere(where: Partial<ProductEntity>): ProductEntity | null
     {
       provide: ProductsRepository,
       useValue: {
-        find: jest.fn(async () => sortProductsByCreatedAtDesc(Array.from(products.values()))),
-        findOne: jest.fn(async (id: string) => products.get(id) ?? null),
-        findOneBy: jest.fn(async (where: Partial<ProductEntity>) => findProductByWhere(where)),
-        findBy: jest.fn(
-          async (where: Partial<ProductEntity>) =>
+        find: jest.fn(() =>
+          Promise.resolve(
+            sortProductsByCreatedAtDesc(Array.from(products.values())),
+          ),
+        ),
+        findOne: jest.fn((id: string) =>
+          Promise.resolve(products.get(id) ?? null),
+        ),
+        findOneBy: jest.fn((where: Partial<ProductEntity>) =>
+          Promise.resolve(findProductByWhere(where)),
+        ),
+        findBy: jest.fn((where: Partial<ProductEntity>) =>
+          Promise.resolve(
             Array.from(products.values()).filter((product) =>
               Object.entries(where).every(
                 ([key, value]) => product[key as keyof ProductEntity] === value,
               ),
             ),
+          ),
         ),
-        create: jest.fn((entity: Partial<ProductEntity>) => new ProductEntity(entity)),
-        preload: jest.fn(async (entity: Partial<ProductEntity>) => {
+        create: jest.fn(
+          (entity: Partial<ProductEntity>) => new ProductEntity(entity),
+        ),
+        preload: jest.fn((entity: Partial<ProductEntity>) => {
           if (!entity.id) {
-            return undefined;
+            return Promise.resolve(undefined);
           }
 
           const current = products.get(entity.id);
           if (!current) {
-            return undefined;
+            return Promise.resolve(undefined);
           }
 
-          return new ProductEntity({
-            ...current,
-            ...entity,
-          });
+          return Promise.resolve(
+            new ProductEntity({
+              ...current,
+              ...entity,
+            }),
+          );
         }),
-        save: jest.fn(async (entity: Partial<ProductEntity>) => {
+        save: jest.fn((entity: Partial<ProductEntity>) => {
           const timestamp = new Date('2026-08-24T00:00:00.000Z');
 
           if (!entity.id) {
@@ -107,7 +209,7 @@ function findProductByWhere(where: Partial<ProductEntity>): ProductEntity | null
               updatedAt: timestamp,
             });
             products.set(created.id, created);
-            return created;
+            return Promise.resolve(created);
           }
 
           const current = products.get(entity.id);
@@ -117,15 +219,15 @@ function findProductByWhere(where: Partial<ProductEntity>): ProductEntity | null
             updatedAt: timestamp,
           });
           products.set(updated.id, updated);
-          return updated;
+          return Promise.resolve(updated);
         }),
-        remove: jest.fn(async (entity: ProductEntity) => {
+        remove: jest.fn((entity: ProductEntity) => {
           const current = products.get(entity.id);
           if (!current) {
             throw new Error('Product not found');
           }
           products.delete(entity.id);
-          return current;
+          return Promise.resolve(current);
         }),
       },
     },
@@ -133,18 +235,21 @@ function findProductByWhere(where: Partial<ProductEntity>): ProductEntity | null
 })
 class TestApiModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(RequestContextMiddleware).forRoutes(AuthController, ProductsController);
-    consumer.apply(ProtectedRouteAuthHeaderMiddleware).forRoutes(
-      { path: 'products', method: RequestMethod.POST },
-      { path: 'products/:id', method: RequestMethod.PATCH },
-      { path: 'products/:id', method: RequestMethod.DELETE },
-    );
+    consumer
+      .apply(RequestContextMiddleware)
+      .forRoutes(AuthController, ProductsController);
+    consumer
+      .apply(ProtectedRouteAuthHeaderMiddleware)
+      .forRoutes(
+        { path: 'products', method: RequestMethod.POST },
+        { path: 'products/:id', method: RequestMethod.PATCH },
+        { path: 'products/:id', method: RequestMethod.DELETE },
+      );
   }
 }
 
 describe('ProductsController (e2e)', () => {
   let app: INestApplication<App>;
-  let jwtTokenService: JwtTokenService;
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -163,7 +268,6 @@ describe('ProductsController (e2e)', () => {
     );
     app.useGlobalInterceptors(new RequestTimeoutInterceptor());
     await app.init();
-    jwtTokenService = app.get(JwtTokenService);
   });
 
   it('issues a bearer token for valid login credentials', async () => {
@@ -175,14 +279,29 @@ describe('ProductsController (e2e)', () => {
       })
       .expect(201);
 
-    expect(loginResponse.body).toEqual(
-      expect.objectContaining({
-        accessToken: expect.any(String),
-        tokenType: 'Bearer',
-        expiresIn: '1h',
-        role: 'admin',
-      }),
-    );
+    const loginBody: unknown = loginResponse.body;
+    assertIsLoginResponseBody(loginBody, 'admin');
+
+    expect(loginBody.accessToken).not.toHaveLength(0);
+    expect(loginBody.tokenType).toBe('Bearer');
+    expect(loginBody.expiresIn).toBe('1h');
+    expect(loginBody.role).toBe('admin');
+    expect(loginResponse.headers['x-request-id']).toEqual(expect.any(String));
+  });
+
+  it('issues a bearer token for valid demo user credentials', async () => {
+    const loginResponse = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({
+        username: 'user',
+        password: 'user-secret',
+      })
+      .expect(201);
+
+    const loginBody: unknown = loginResponse.body;
+    assertIsLoginResponseBody(loginBody, 'user');
+
+    expect(loginBody.role).toBe('user');
     expect(loginResponse.headers['x-request-id']).toEqual(expect.any(String));
   });
 
@@ -199,7 +318,9 @@ describe('ProductsController (e2e)', () => {
     });
     products.set(seededProduct.id, seededProduct);
 
-    const listResponse = await request(app.getHttpServer()).get('/products').expect(200);
+    const listResponse = await request(app.getHttpServer())
+      .get('/products')
+      .expect(200);
     expect(listResponse.body).toEqual([
       expect.objectContaining({
         id: seededProduct.id,
@@ -208,7 +329,9 @@ describe('ProductsController (e2e)', () => {
     ]);
     expect(listResponse.headers['x-request-id']).toEqual(expect.any(String));
 
-    await request(app.getHttpServer()).get('/products/slug/orbit-chair').expect(200);
+    await request(app.getHttpServer())
+      .get('/products/slug/orbit-chair')
+      .expect(200);
     await request(app.getHttpServer()).get('/products/product-1').expect(200);
   });
 
@@ -226,11 +349,16 @@ describe('ProductsController (e2e)', () => {
   });
 
   it('returns 403 for protected write routes when the role is not admin', async () => {
-    const nonAdminToken = jwtTokenService.sign({
-      sub: 'student-1',
-      username: 'vasya',
-      role: 'student',
-    });
+    const loginResponse = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({
+        username: 'user',
+        password: 'user-secret',
+      })
+      .expect(201);
+    const loginBody: unknown = loginResponse.body;
+    assertIsLoginResponseBody(loginBody, 'user');
+    const nonAdminToken = loginBody.accessToken;
 
     await request(app.getHttpServer())
       .post('/products')
@@ -267,7 +395,9 @@ describe('ProductsController (e2e)', () => {
         password: 'super-secret',
       })
       .expect(201);
-    const accessToken = loginResponse.body.accessToken;
+    const loginBody: unknown = loginResponse.body;
+    assertIsLoginResponseBody(loginBody, 'admin');
+    const accessToken = loginBody.accessToken;
 
     const createResponse = await request(app.getHttpServer())
       .post('/products')
@@ -280,52 +410,55 @@ describe('ProductsController (e2e)', () => {
         imageUrl: 'https://images.example/orbit-chair.jpg',
       })
       .expect(201);
+    const createBody: unknown = createResponse.body;
+    assertIsProductResponseBody(createBody);
+    const productId = createBody.id;
 
     const updatePayload: Partial<CreateProductDto> = {
       price: 199.99,
     };
 
     const updateResponse = await request(app.getHttpServer())
-      .patch(`/products/${createResponse.body.id}`)
+      .patch(`/products/${productId}`)
       .set('Authorization', `Bearer ${accessToken}`)
       .send(updatePayload)
       .expect(200);
-    expect(updateResponse.body).toEqual(
-      expect.objectContaining({
-        id: createResponse.body.id,
-        price: 199.99,
-      }),
-    );
+    const updateBody: unknown = updateResponse.body;
+    assertIsProductResponseBody(updateBody);
+    expect(updateBody.id).toBe(productId);
+    expect(updateBody.price).toBe(199.99);
 
     const detailResponse = await request(app.getHttpServer())
-      .get(`/products/${createResponse.body.id}`)
+      .get(`/products/${productId}`)
       .expect(200);
-    expect(detailResponse.body).toEqual(
-      expect.objectContaining({
-        id: createResponse.body.id,
-        slug: 'orbit-chair',
-        price: 199.99,
-      }),
-    );
+    const detailBody: unknown = detailResponse.body;
+    assertIsProductResponseBody(detailBody);
+    expect(detailBody.id).toBe(productId);
+    expect(detailBody.slug).toBe('orbit-chair');
+    expect(detailBody.price).toBe(199.99);
 
     const slugResponse = await request(app.getHttpServer())
       .get('/products/slug/orbit-chair')
       .expect(200);
-    expect(slugResponse.body).toEqual(
-      expect.objectContaining({
-        id: createResponse.body.id,
-        slug: 'orbit-chair',
-      }),
-    );
+    const slugBody: unknown = slugResponse.body;
+    assertIsProductResponseBody(slugBody);
+    expect(slugBody.id).toBe(productId);
+    expect(slugBody.slug).toBe('orbit-chair');
 
     await request(app.getHttpServer())
-      .delete(`/products/${createResponse.body.id}`)
+      .delete(`/products/${productId}`)
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
 
     await request(app.getHttpServer())
-      .get(`/products/${createResponse.body.id}`)
+      .get(`/products/${productId}`)
       .expect(404);
+  });
+
+  it('returns 408 for the demo timeout route', async () => {
+    await request(app.getHttpServer())
+      .get('/products/demo/timeout')
+      .expect(408);
   });
 
   afterEach(async () => {

@@ -34,6 +34,11 @@ export class ProductsController {
     return this.productsService.findAll();
   }
 
+  @Get('demo/timeout')
+  demoTimeout(): Promise<{ status: 'completed'; waitedMs: number }> {
+    return this.productsService.demoTimeout();
+  }
+
   @Get('slug/:slug')
   findOneBySlug(@Param('slug') slug: string): Promise<ProductResponseDto> {
     return this.productsService.findOneBySlug(slug);
@@ -47,7 +52,10 @@ export class ProductsController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  update(@Param('id') id: string, @Body() dto: UpdateProductDto): Promise<ProductResponseDto> {
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateProductDto,
+  ): Promise<ProductResponseDto> {
     return this.productsService.update(id, dto);
   }
 

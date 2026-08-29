@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ProductResponseDto } from './dto/product-response.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -11,6 +12,7 @@ describe('ProductsController', () => {
   const productsService = {
     create: jest.fn(),
     findAll: jest.fn(),
+    demoTimeout: jest.fn(),
     findOne: jest.fn(),
     findOneBySlug: jest.fn(),
     update: jest.fn(),
@@ -26,7 +28,12 @@ describe('ProductsController', () => {
           useValue: productsService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({
+        canActivate: jest.fn().mockReturnValue(true),
+      })
+      .compile();
 
     controller = module.get<ProductsController>(ProductsController);
     jest.clearAllMocks();
@@ -64,6 +71,19 @@ describe('ProductsController', () => {
     expect(productsService.findAll).toHaveBeenCalled();
   });
 
+  it('delegates demoTimeout to the service', async () => {
+    productsService.demoTimeout.mockResolvedValue({
+      status: 'completed',
+      waitedMs: 6000,
+    });
+
+    await expect(controller.demoTimeout()).resolves.toEqual({
+      status: 'completed',
+      waitedMs: 6000,
+    });
+    expect(productsService.demoTimeout).toHaveBeenCalled();
+  });
+
   it('delegates findOne to the service', async () => {
     const response = {
       id: 'product-1',
@@ -96,7 +116,9 @@ describe('ProductsController', () => {
 
     productsService.findOneBySlug.mockResolvedValue(response);
 
-    await expect(controller.findOneBySlug('orbit-chair')).resolves.toEqual(response);
+    await expect(controller.findOneBySlug('orbit-chair')).resolves.toEqual(
+      response,
+    );
     expect(productsService.findOneBySlug).toHaveBeenCalledWith('orbit-chair');
   });
 
@@ -117,7 +139,9 @@ describe('ProductsController', () => {
 
     productsService.update.mockResolvedValue(response);
 
-    await expect(controller.update('product-1', dto)).resolves.toEqual(response);
+    await expect(controller.update('product-1', dto)).resolves.toEqual(
+      response,
+    );
     expect(productsService.update).toHaveBeenCalledWith('product-1', dto);
   });
 

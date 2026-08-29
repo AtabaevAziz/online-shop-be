@@ -1,13 +1,16 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { LoginRequestDto } from './dto/login-request.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { JwtTokenService } from './jwt-token.service';
+
+type DemoAccount = {
+  sub: string;
+  username: string;
+  password: string;
+  role: 'admin' | 'user';
+};
 
 @Injectable()
 export class AuthService {
@@ -16,29 +19,50 @@ export class AuthService {
     private readonly jwtTokenService: JwtTokenService,
   ) {}
 
-  async login(dto: LoginRequestDto): Promise<LoginResponseDto> {
-    const username = this.configService.get<string>('AUTH_ADMIN_USERNAME');
-    const password = this.configService.get<string>('AUTH_ADMIN_PASSWORD');
+  login(dto: LoginRequestDto): LoginResponseDto {
+    const account = this.getSupportedAccounts().find(
+      (candidate) =>
+        candidate.username === dto.username &&
+        candidate.password === dto.password,
+    );
 
-    if (!username || !password) {
-      throw new InternalServerErrorException('Admin credentials are not configured');
-    }
-
-    if (dto.username !== username || dto.password !== password) {
+    if (!account) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
     const accessToken = this.jwtTokenService.sign({
-      sub: 'admin-user',
-      username,
-      role: 'admin',
+      sub: account.sub,
+      username: account.username,
+      role: account.role,
     });
 
     return {
       accessToken,
       tokenType: 'Bearer',
       expiresIn: this.jwtTokenService.getExpiresIn(),
-      role: 'admin',
+      role: account.role,
     };
+  }
+
+  private getSupportedAccounts(): DemoAccount[] {
+    return [
+      {
+        sub: 'admin-user',
+        username:
+          this.configService.get<string>('AUTH_ADMIN_USERNAME') ?? 'admin',
+        password:
+          this.configService.get<string>('AUTH_ADMIN_PASSWORD') ??
+          'super-secret',
+        role: 'admin',
+      },
+      {
+        sub: 'demo-user',
+        username:
+          this.configService.get<string>('AUTH_DEMO_USERNAME') ?? 'user',
+        password:
+          this.configService.get<string>('AUTH_DEMO_PASSWORD') ?? 'user-secret',
+        role: 'user',
+      },
+    ];
   }
 }

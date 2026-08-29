@@ -1,11 +1,19 @@
-import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NestMiddleware,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { NextFunction, Response } from 'express';
 
 import { AuthenticatedRequest } from '../../auth/interfaces/authenticated-request.interface';
 
 @Injectable()
 export class ProtectedRouteAuthHeaderMiddleware implements NestMiddleware {
-  use(request: AuthenticatedRequest, _response: Response, next: NextFunction): void {
+  use(
+    request: AuthenticatedRequest,
+    _response: Response,
+    next: NextFunction,
+  ): void {
     // Middleware checks request headers before auth/role guards run.
     const authorization = request.headers.authorization;
 
@@ -14,7 +22,9 @@ export class ProtectedRouteAuthHeaderMiddleware implements NestMiddleware {
     }
 
     if (!authorization.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Authorization header must use Bearer token');
+      throw new UnauthorizedException(
+        'Authorization header must use Bearer token',
+      );
     }
 
     if (authorization.slice('Bearer '.length).trim().length === 0) {

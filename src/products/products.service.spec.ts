@@ -80,15 +80,19 @@ describe('ProductsService', () => {
       createdAt: baseProduct.createdAt,
       updatedAt: baseProduct.updatedAt,
     });
-    expect(repository.findOneBy).toHaveBeenCalledWith({ slug: dto.slug });
-    expect(repository.create).toHaveBeenCalledWith({
-      name: dto.name,
-      slug: dto.slug,
-      description: dto.description,
-      price: dto.price,
-      imageUrl: dto.imageUrl,
-    });
-    expect(repository.save).toHaveBeenCalledWith(baseProduct);
+    expect(repository.findOneBy.mock.calls).toEqual([[{ slug: dto.slug }]]);
+    expect(repository.create.mock.calls).toEqual([
+      [
+        {
+          name: dto.name,
+          slug: dto.slug,
+          description: dto.description,
+          price: dto.price,
+          imageUrl: dto.imageUrl,
+        },
+      ],
+    ]);
+    expect(repository.save.mock.calls).toEqual([[baseProduct]]);
   });
 
   it('throws conflict when creating a duplicate slug', async () => {
@@ -135,13 +139,28 @@ describe('ProductsService', () => {
         updatedAt: baseProduct.updatedAt,
       },
     ]);
-    expect(repository.find).toHaveBeenCalled();
+    expect(repository.find.mock.calls).toHaveLength(1);
+  });
+
+  it('waits long enough to trigger the timeout interceptor in demo mode', async () => {
+    jest.useFakeTimers();
+
+    const resultPromise = service.demoTimeout();
+    jest.advanceTimersByTime(6000);
+
+    await expect(resultPromise).resolves.toEqual({
+      status: 'completed',
+      waitedMs: 6000,
+    });
+    jest.useRealTimers();
   });
 
   it('throws not found when a product does not exist', async () => {
     repository.findOne.mockResolvedValue(null);
 
-    await expect(service.findOne('missing')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.findOne('missing')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('updates a product with partial fields', async () => {
@@ -168,13 +187,14 @@ describe('ProductsService', () => {
       createdAt: updatedProduct.createdAt,
       updatedAt: updatedProduct.updatedAt,
     });
-    expect(repository.preload).toHaveBeenCalledWith(
+    expect(repository.preload.mock.calls).toHaveLength(1);
+    expect(repository.preload.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
         id: baseProduct.id,
         price: dto.price,
       }),
     );
-    expect(repository.save).toHaveBeenCalledWith(updatedProduct);
+    expect(repository.save.mock.calls).toEqual([[updatedProduct]]);
   });
 
   it('throws conflict when updating to an existing slug', async () => {
@@ -208,7 +228,7 @@ describe('ProductsService', () => {
       createdAt: baseProduct.createdAt,
       updatedAt: baseProduct.updatedAt,
     });
-    expect(repository.remove).toHaveBeenCalledWith(baseProduct);
+    expect(repository.remove.mock.calls).toEqual([[baseProduct]]);
   });
 
   it('returns one product by slug', async () => {
@@ -224,12 +244,16 @@ describe('ProductsService', () => {
       createdAt: baseProduct.createdAt,
       updatedAt: baseProduct.updatedAt,
     });
-    expect(repository.findOneBy).toHaveBeenCalledWith({ slug: baseProduct.slug });
+    expect(repository.findOneBy.mock.calls).toEqual([
+      [{ slug: baseProduct.slug }],
+    ]);
   });
 
   it('throws not found when a slug does not exist', async () => {
     repository.findOneBy.mockResolvedValue(null);
 
-    await expect(service.findOneBySlug('missing-slug')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.findOneBySlug('missing-slug')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });
