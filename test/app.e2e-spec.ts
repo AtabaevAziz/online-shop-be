@@ -459,7 +459,7 @@ describe('ProductsController (e2e)', () => {
     await request(app.getHttpServer())
       .get('/products/demo/timeout')
       .expect(408);
-  });
+  }, 10_000);
 
   afterEach(async () => {
     await app.close();
