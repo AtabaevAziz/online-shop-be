@@ -108,7 +108,7 @@ export class ProductsService {
     slug: string;
     description: string;
     price: number;
-    imageUrl: string;
+    imageUrl: string | null;
     createdAt: Date;
     updatedAt: Date;
   }): ProductResponseDto {
